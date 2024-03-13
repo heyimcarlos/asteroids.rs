@@ -16,7 +16,7 @@ fn main() {
         .insert_resource(ClearColor(Color::rgb(0.1, 0.0, 0.15)))
         .insert_resource(AmbientLight {
             color: Color::default(),
-            brightness: 0.75,
+            brightness: 1000.0,
         })
         // user configured plugins.
         .add_plugins(SpaceshipPlugin)
