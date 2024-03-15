@@ -3,7 +3,10 @@ use std::ops::Range;
 use bevy::prelude::*;
 use rand::Rng;
 
-use crate::movement::{Acceleration, MovingObjectBundle, Velocity};
+use crate::{
+    asset_loader::SceneAssets,
+    movement::{Acceleration, MovingObjectBundle, Velocity},
+};
 
 const VELOCITY_SCALAR: f32 = 5.0;
 const ACCELERATION_SCALAR: f32 = 1.0;
@@ -21,6 +24,7 @@ pub struct SpawnTimer {
 
 pub struct AsteroidPlugin;
 
+// @INFO: implement the plugin trait
 impl Plugin for AsteroidPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(SpawnTimer {
@@ -30,12 +34,29 @@ impl Plugin for AsteroidPlugin {
     }
 }
 
+// #[derive(Debug)]
+// enum AsteroidEnum {
+//     1,
+//     2,
+//     3,
+// }
+
+// @TODO: randomize asteroid selection
+// fn select_asteroid(choice: AsteroidEnum) -> String {
+//     match choice {
+//         AsteroidEnum::One => "Planet.glb#Scene0".to_string(),
+//         AsteroidEnum::Two => "Planet-4NxxeyYMPJ.glb#Scene0".to_string(),
+//         AsteroidEnum::Three => "Planet-5zzi8WUMXj.glb#Scene0".to_string(),
+//     }
+// }
+
 fn spawn_asteroid(
     mut commands: Commands,
     mut spawn_timer: ResMut<SpawnTimer>,
     time: Res<Time>,
-    asset_server: Res<AssetServer>,
+    scene_assets: Res<SceneAssets>,
 ) {
+    // select_asteroid(rand);
     // take the duration of the last frame and apply it to the timer. Keeping track of the time
     // that has elapsed
     spawn_timer.timer.tick(time.delta());
@@ -52,6 +73,7 @@ fn spawn_asteroid(
         rng.gen_range(SPAWN_RANGE_Z),
     );
 
+    // this is a helper function that generates a random unit vector
     let mut random_unit_vector =
         || Vec3::new(rng.gen_range(-1.0..1.0), 0., rng.gen_range(-1.0..1.0)).normalize_or_zero();
     let velocity = random_unit_vector() * VELOCITY_SCALAR;
@@ -62,7 +84,8 @@ fn spawn_asteroid(
             velocity: Velocity::new(velocity),
             acceleration: Acceleration::new(acceleration),
             model: SceneBundle {
-                scene: asset_server.load("Rock.glb#Scene0"),
+                scene: scene_assets.asteroid.clone(),
+                // @TODO: add a random scale
                 transform: Transform::from_translation(translation),
                 ..default()
             },
