@@ -5,6 +5,7 @@ use rand::Rng;
 
 use crate::{
     asset_loader::SceneAssets,
+    collision_detection::Collider,
     movement::{Acceleration, MovingObjectBundle, Velocity},
 };
 
@@ -13,6 +14,8 @@ const ACCELERATION_SCALAR: f32 = 1.0;
 const SPAWN_RANGE_X: Range<f32> = -25.0..25.0;
 const SPAWN_RANGE_Z: Range<f32> = 0.0..25.0;
 const SPAWN_TIME_SECONDS: f32 = 1.0;
+const ROTATE_SPEED: f32 = 1.0;
+const RADIUS: f32 = 2.5;
 
 #[derive(Component, Debug)]
 pub struct Asteroid;
@@ -30,7 +33,10 @@ impl Plugin for AsteroidPlugin {
         app.insert_resource(SpawnTimer {
             timer: Timer::from_seconds(SPAWN_TIME_SECONDS, TimerMode::Repeating),
         })
-        .add_systems(Update, spawn_asteroid);
+        .add_systems(
+            Update,
+            (spawn_asteroid, rotate_asteroids, handle_asteroid_collision),
+        );
     }
 }
 
@@ -83,6 +89,7 @@ fn spawn_asteroid(
         MovingObjectBundle {
             velocity: Velocity::new(velocity),
             acceleration: Acceleration::new(acceleration),
+            collider: Collider::new(RADIUS),
             model: SceneBundle {
                 scene: scene_assets.asteroid.clone(),
                 // @TODO: add a random scale
@@ -92,4 +99,25 @@ fn spawn_asteroid(
         },
         Asteroid, // tagging the entity to be created with the asteroid component
     ));
+}
+
+fn rotate_asteroids(mut query: Query<&mut Transform, With<Asteroid>>, time: Res<Time>) {
+    for mut transform in query.iter_mut() {
+        transform.rotate_local_z(ROTATE_SPEED * time.delta_seconds());
+    }
+}
+
+fn handle_asteroid_collision(
+    mut commands: Commands,
+    query: Query<(Entity, &Collider), With<Asteroid>>,
+) {
+    for (entity, collider) in query.iter() {
+        for &collided_entity in collider.colliding_entities.iter() {
+            // @INFO: asteroid collided with another asteroid.
+            if query.get(collided_entity).is_ok() {
+                continue;
+            }
+            commands.entity(entity).despawn_recursive();
+        }
+    }
 }
