@@ -1,6 +1,11 @@
 use bevy::{prelude::*, utils::HashMap};
 
-use crate::{asteroids::Asteroid, schedule::InGameSet, spaceship::Spaceship};
+use crate::{
+    asteroids::Asteroid,
+    health::Health,
+    schedule::InGameSet,
+    spaceship::{Spaceship, SpaceshipMissile},
+};
 
 // @TODO: use bevy rapier or xpbd as a physics plugin to implement collision detection.
 
@@ -19,6 +24,32 @@ impl Collider {
     }
 }
 
+#[derive(Component, Debug)]
+pub struct CollisionDamage {
+    amount: f32,
+}
+
+impl CollisionDamage {
+    pub fn new(amount: f32) -> Self {
+        Self { amount }
+    }
+}
+
+#[derive(Event, Debug)]
+pub struct CollisionEvent {
+    pub entity: Entity,
+    pub collided_entity: Entity,
+}
+
+impl CollisionEvent {
+    pub fn new(entity: Entity, collided_entity: Entity) -> Self {
+        Self {
+            entity,
+            collided_entity,
+        }
+    }
+}
+
 pub struct CollisionDetectionPlugin;
 
 impl Plugin for CollisionDetectionPlugin {
@@ -30,11 +61,19 @@ impl Plugin for CollisionDetectionPlugin {
         .add_systems(
             Update,
             (
-                handle_collisions::<Asteroid>,
-                handle_collisions::<Spaceship>,
+                // handle_collisions runs in parallel
+                (
+                    handle_collisions::<Asteroid>,
+                    handle_collisions::<Spaceship>,
+                    handle_collisions::<SpaceshipMissile>,
+                ),
+                // apply damage always runs after
+                apply_collision_damage,
             )
-                .in_set(InGameSet::DespawnEntities),
-        );
+                .chain()
+                .in_set(InGameSet::EntityUpdates),
+        )
+        .add_event::<CollisionEvent>();
     }
 }
 
@@ -70,7 +109,7 @@ fn collision_detection(mut query: Query<(Entity, &GlobalTransform, &mut Collider
 }
 
 fn handle_collisions<T: Component>(
-    mut commands: Commands,
+    mut collision_event_write: EventWriter<CollisionEvent>,
     query: Query<(Entity, &Collider), With<T>>,
 ) {
     for (entity, collider) in query.iter() {
@@ -79,7 +118,36 @@ fn handle_collisions<T: Component>(
             if query.get(collided_entity).is_ok() {
                 continue;
             }
-            commands.entity(entity).despawn_recursive();
+            // @Info: send collision event.
+            collision_event_write.send(CollisionEvent::new(entity, collided_entity));
         }
+    }
+}
+
+// @todo: maybe add an immunity system where after the spaceship takes damage, it can't take
+// damage repeateadly from the same source.
+fn apply_collision_damage(
+    mut collision_event_reader: EventReader<CollisionEvent>,
+    mut health_query: Query<&mut Health>,
+    collision_damage_query: Query<&CollisionDamage>,
+) {
+    for &CollisionEvent {
+        entity,
+        collided_entity,
+    } in collision_event_reader.read()
+    {
+        let Ok(mut health) = health_query.get_mut(entity) else {
+            continue;
+        };
+
+        let Ok(damage) = collision_damage_query.get(collided_entity) else {
+            continue;
+        };
+
+        health.value -= damage.amount;
+        println!(
+            "COLLISION DETECTION AFTER -> health:{}, damage:{},",
+            health.value, damage.amount
+        );
     }
 }

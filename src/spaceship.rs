@@ -1,6 +1,7 @@
 use crate::{
     asset_loader::SceneAssets,
-    collision_detection::Collider,
+    collision_detection::{Collider, CollisionDamage},
+    health::Health,
     movement::{Acceleration, MovingObjectBundle, Velocity},
     schedule::InGameSet,
 };
@@ -11,19 +12,23 @@ const SPACESHIP_SPEED: f32 = 25.0;
 const SPACESHIP_ROTATION_SPEED: f32 = 2.5;
 const SPACESHIP_ROLL_SPEED: f32 = 2.5;
 const SPACESHIP_RADIUS: f32 = 5.0;
+const SPACESHIP_HEALTH: f32 = 2000.0;
+const SPACESHIP_COLLISION_DAMAGE: f32 = 1.0;
 
 const MISSILE_RADIUS: f32 = 1.0;
 const MISSILE_SPEED: f32 = 50.0;
 const MISSILE_FORWARD_SPAWN_SCALAR: f32 = 7.5;
+const MISSILE_HEALTH: f32 = 1.0;
+const MISSILE_COLLISION_DAMAGE: f32 = 5.0;
 
 // @INFO: add a spaceship marker component, to tag entities and be able to query for spaceships.
-#[derive(Component, Debug)]
+#[derive(Component)]
 pub struct Spaceship;
 
-#[derive(Component, Debug)]
+#[derive(Component)]
 pub struct SpaceshipMissile;
 
-#[derive(Component, Debug)]
+#[derive(Component)]
 pub struct SpaceshipShield;
 
 pub struct SpaceshipPlugin;
@@ -56,6 +61,8 @@ fn spawn_spaceship(mut commands: Commands, scene_assets: Res<SceneAssets>) {
             },
         },
         Spaceship,
+        Health::new(SPACESHIP_HEALTH),
+        CollisionDamage::new(SPACESHIP_COLLISION_DAMAGE),
     ));
 }
 
@@ -129,6 +136,8 @@ fn spaceship_weapon_controls(
                 },
             },
             SpaceshipMissile,
+            Health::new(MISSILE_HEALTH),
+            CollisionDamage::new(MISSILE_COLLISION_DAMAGE),
         ));
     }
 }
