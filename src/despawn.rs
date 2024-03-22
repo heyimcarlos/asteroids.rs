@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{health::Health, schedule::InGameSet};
+use crate::{health::Health, schedule::InGameSet, state::GameState};
 
 const DESPAWN_DISTANCE: f32 = 100.0;
 
@@ -11,7 +11,8 @@ impl Plugin for DespawnPlugin {
         app.add_systems(
             Update,
             (despawn_far_away_entities, despawn_dead_entities).in_set(InGameSet::DespawnEntities),
-        );
+        )
+        .add_systems(OnEnter(GameState::GameOver), despawn_all_entities);
     }
 }
 
@@ -34,5 +35,11 @@ fn despawn_dead_entities(mut commands: Commands, query: Query<(Entity, &Health)>
             println!("health: {} entity: {:?} ", health.value, entity);
             commands.entity(entity).despawn_recursive();
         }
+    }
+}
+
+fn despawn_all_entities(mut commands: Commands, query: Query<Entity, With<Health>>) {
+    for entity in query.iter() {
+        commands.entity(entity).despawn_recursive();
     }
 }
